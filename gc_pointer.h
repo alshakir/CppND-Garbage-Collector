@@ -106,25 +106,52 @@ Pointer<T,size>::Pointer(T *t){
         atexit(shutdown);
     first = false;
 
-    // TODO: Implement Pointer constructor
+    // Done: Implement Pointer constructor
     // Lab: Smart Pointer Project Lab
+   
+        addr = t;
+        if(size > 0){
+            isArray = true;
+        }else{
+            isArray = false;
+            arraySize = size;
+        }
+        PtrDetails<T> ptrdetail{t,size};
+        refContainer.push_back(ptrdetail);
+    
 
 }
 // Copy constructor.
 template< class T, int size>
 Pointer<T,size>::Pointer(const Pointer &ob){
 
-    // TODO: Implement Pointer constructor
+    // Done: Implement Pointer constructor
     // Lab: Smart Pointer Project Lab
 
+    addr = ob.addr;
+    isArray = ob.isArray;
+    arraySize = ob.arraySize;
+    auto p = findPtrInfo(ob.addr);
+
+    p->refcount++;
+    
 }
 
 // Destructor for Pointer.
 template <class T, int size>
 Pointer<T, size>::~Pointer(){
 
-    // TODO: Implement Pointer destructor
+    // Done: Implement Pointer destructor
     // Lab: New and Delete Project Lab
+  //typename std::list<PtrDetails<T> >::iterator p;
+    auto p = findPtrInfo(addr);
+    if (p->refcount)
+        p->refcount--; 
+    // decrement ref count
+    // Collect garbage when a pointer goes out of scope.
+    collect();
+   
+    
 }
 
 // Collect garbage. Returns true if at least
@@ -132,26 +159,85 @@ Pointer<T, size>::~Pointer(){
 template <class T, int size>
 bool Pointer<T, size>::collect(){
 
-    // TODO: Implement collect function
+    // Done: Implement collect function
     // LAB: New and Delete Project Lab
     // Note: collect() will be called in the destructor
-    return false;
+
+
+    bool memfreed = false;
+    typename std::list<PtrDetails<T> >::iterator p;
+    do{
+        // Scan refContainer looking for unreferenced pointers.
+        for (p = refContainer.begin(); p != refContainer.end(); p++){
+            // If in-use, skip.
+            if (p->refcount > 0)
+                continue;
+            memfreed = true;
+            // Remove unused entry from refContainer.
+            refContainer.remove(*p);
+
+            // Free memory unless the Pointer is null.
+            if (p->memPtr){
+                if (p->isArray){
+                    delete[] p->memPtr; // delete array
+                }
+                else{
+                    delete p->memPtr; // delete single element
+                }
+            }
+            // Restart the search.
+            break;
+        }
+    } while (p != refContainer.end());
+    return memfreed;
+
+
+
 }
 
 // Overload assignment of pointer to Pointer.
 template <class T, int size>
 T *Pointer<T, size>::operator=(T *t){
 
-    // TODO: Implement operator==
+    // Done: Implement operator==
     // LAB: Smart Pointer Project Lab
+    addr = t;
+
+    auto p = findPtrInfo(addr);
+    
+    //assigning to new pointer
+    if(p == refContainer.end()) {
+        std::cout << "creating new pointerDetail object" << std::endl;
+
+        PtrDetails<T> ptrDet{t};
+        
+        refContainer.push_back(ptrDet);
+    }
+    else
+    {//assigning to an existing pointer
+        p->memPtr = t;
+    }
+    return addr;
+//notice that there is an assumption here
+//that is, we shouldn't create any pointer(the old way) and assign it to our (smart pointer)
+//otherwise we will face problems with array pointers.
 
 }
 // Overload assignment of Pointer to Pointer.
 template <class T, int size>
 Pointer<T, size> &Pointer<T, size>::operator=(Pointer &rv){
 
-    // TODO: Implement operator==
+    // Done: Implement operator==
     // LAB: Smart Pointer Project Lab
+    addr = rv.addr;
+    isArray = rv.isArray;
+    arraySize = rv.arraySize;
+    auto p = findPtrInfo(rv.addr);
+
+    p->refcount++;
+    
+    return *this;
+
 
 }
 
@@ -160,10 +246,10 @@ template <class T, int size>
 void Pointer<T, size>::showlist(){
     typename std::list<PtrDetails<T> >::iterator p;
     std::cout << "refContainer<" << typeid(T).name() << ", " << size << ">:\n";
-    std::cout << "memPtr refcount value\n ";
+    std::cout << "memPtr refcount value\n";
     if (refContainer.begin() == refContainer.end())
     {
-        std::cout << " Container is empty!\n\n ";
+        std::cout << " Container is empty!\n\n";
     }
     for (p = refContainer.begin(); p != refContainer.end(); p++)
     {
